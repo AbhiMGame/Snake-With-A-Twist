@@ -2,26 +2,26 @@ using UnityEngine;
 
 public class Tile : MonoBehaviour
 {
-    public SpriteRenderer spriteRenderer;
-    private bool isHealthy = false; // Track the tile's state
+    private SpriteRenderer spriteRenderer;
+    private bool isHealthy = false;
 
     private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
-    public bool IsHealthy => isHealthy; // Read-only property
+    public bool IsHealthy => isHealthy;
 
     public void MakeHealthy()
     {
-        if (!isHealthy)  // Prevent redundant updates
+        if (!isHealthy)
         {
             isHealthy = true;
-            SetColor(Color.green); // Change the tile color to green
+            SetColor(Color.green);
         }
     }
 
-    public void SetColor(Color color)
+    private void SetColor(Color color)
     {
         spriteRenderer.color = color;
     }
