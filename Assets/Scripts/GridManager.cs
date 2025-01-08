@@ -1,114 +1,68 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
-    public GridData gridSettings;
-    public GameObject tilePrefab;
-    public GameObject foodPrefab;
-    private Tile[,] gridTiles;
-    private List<Vector2Int> nonHealthyTiles = new List<Vector2Int>();
-    private float tileSize;
-    private Vector3 originalTileScale;
+    public int rows = 10;         // Number of rows (can be set in the inspector)
+    public int columns = 10;      // Number of columns (can be set in the inspector)
+    public float cellSize = 1f;   // Size of each cell
+    public GameObject cellPrefab; // Assign a square sprite prefab in Unity Editor
 
-    private void Start()
+    private Dictionary<Vector2Int, GameObject> gridCells = new Dictionary<Vector2Int, GameObject>();
+
+    void Start()
     {
-        // Store the original tile scale before any modifications
-        originalTileScale = tilePrefab.transform.localScale;
-        CalculateTileSize();
         GenerateGrid();
     }
 
-    private void CalculateTileSize()
+    void GenerateGrid()
     {
-        Camera cam = Camera.main;
-        float screenHeight = 2f * cam.orthographicSize;
-        float screenWidth = screenHeight * cam.aspect;
+        // Calculate the center position (0,0)
+        Vector2 center = Vector2.zero;
 
-        // Add some padding (90% of screen size)
-        screenHeight *= 0.9f;
-        screenWidth *= 0.9f;
-
-        float heightBasedSize = screenHeight / gridSettings.height;
-        float widthBasedSize = screenWidth / gridSettings.width;
-        tileSize = Mathf.Min(heightBasedSize, widthBasedSize);
-    }
-
-    public void GenerateGrid()
-    {
-        gridTiles = new Tile[gridSettings.width, gridSettings.height];
-        nonHealthyTiles.Clear();
-
-        float totalWidth = gridSettings.width * tileSize;
-        float totalHeight = gridSettings.height * tileSize;
-        float startX = -totalWidth / 2f;
-        float startY = totalHeight / 2f;
-
-        // Calculate scale factor for tiles only
-        float scaleFactor = tileSize / originalTileScale.x;
-
-        for (int x = 0; x < gridSettings.width; x++)
+        // Loop through each row and column, starting from the center (0, 0)
+        for (int x = -columns / 2; x < columns / 2; x++)  // Centered horizontally
         {
-            for (int y = 0; y < gridSettings.height; y++)
+            for (int y = -rows / 2; y < rows / 2; y++)  // Centered vertically
             {
-                Vector3 position = new Vector3(
-                    startX + (x * tileSize) + (tileSize / 2f),
-                    startY - (y * tileSize) - (tileSize / 2f),
-                    0
-                );
+                // Calculate the world position for each cell
+                Vector2 position = new Vector2(x * cellSize, y * cellSize) + center;
 
-                GameObject tileObj = Instantiate(tilePrefab, position, Quaternion.identity);
-                tileObj.transform.SetParent(transform);
+                // Instantiate the cell at the calculated position
+                GameObject cell = Instantiate(cellPrefab, position, Quaternion.identity, transform);
+                cell.name = $"Cell_{x}_{y}";
 
-                // Scale only the tile objects
-                tileObj.transform.localScale = originalTileScale * scaleFactor;
-
-                Tile tile = tileObj.GetComponent<Tile>();
-                gridTiles[x, y] = tile;
-                nonHealthyTiles.Add(new Vector2Int(x, y));
-            }
-        }
-        SpawnFood();
-    }
-
-    public bool IsTileHealthy(Vector2Int position)
-    {
-        return gridTiles[position.x, position.y] != null && gridTiles[position.x, position.y].IsHealthy;
-    }
-
-    public void SetTileHealthy(Vector2Int position)
-    {
-        if (gridTiles[position.x, position.y] != null && !IsTileHealthy(position))
-        {
-            gridTiles[position.x, position.y].MakeHealthy();
-            nonHealthyTiles.Remove(position);
-            if (nonHealthyTiles.Count == 0)
-            {
-                Debug.Log("Game Over! All tiles are green!");
-                // Add game over logic here
+                // Store reference for easy lookup
+                gridCells[new Vector2Int(x, y)] = cell;
             }
         }
     }
 
-    public void SpawnFood()
+    public int GetColumns()
     {
-        if (nonHealthyTiles.Count > 0)
+        return columns;
+    }
+
+    public int GetRows()
+    {
+        return rows;
+    }
+
+    public GameObject GetCell(Vector2Int position)
+    {
+        return gridCells.ContainsKey(position) ? gridCells[position] : null;
+    }
+
+    // Method to change the color of a specific cell
+    public void ChangeCellColor(Vector2Int position, Color color)
+    {
+        if (gridCells.ContainsKey(position))
         {
-            Vector2Int randomPos = nonHealthyTiles[Random.Range(0, nonHealthyTiles.Count)];
-
-            float totalWidth = gridSettings.width * tileSize;
-            float totalHeight = gridSettings.height * tileSize;
-            float startX = -totalWidth / 2f;
-            float startY = totalHeight / 2f;
-
-            Vector3 spawnPosition = new Vector3(
-                startX + (randomPos.x * tileSize) + (tileSize / 2f),
-                startY - (randomPos.y * tileSize) - (tileSize / 2f),
-                0
-            );
-
-            // Spawn food without scaling it
-            Instantiate(foodPrefab, spawnPosition, Quaternion.identity);
+            Renderer cellRenderer = gridCells[position].GetComponent<Renderer>();
+            if (cellRenderer != null)
+            {
+                cellRenderer.material.color = color;
+            }
         }
     }
 }
