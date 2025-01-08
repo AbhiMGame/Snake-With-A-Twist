@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class SnakeController : MonoBehaviour
 {
@@ -9,9 +8,12 @@ public class SnakeController : MonoBehaviour
     public Camera mainCamera;  // Camera reference for following the snake
     public float smoothSpeed = 0.125f;  // Smoothness of camera movement
     public GridManager gridManager; // Reference to the GridManager to interact with grid cells
-
-    private Vector2 gridBounds; // Store grid bounds (in world space)
     private float objectWidth, objectHeight;
+    public ScoreManager scoreManager;
+
+    // For tracking the game win
+    private int totalCells;
+    private int greenCells;
 
     void Start()
     {
@@ -34,8 +36,9 @@ public class SnakeController : MonoBehaviour
         else
             direction = Vector2.up;     // Move vertically
 
-        // Calculate grid bounds in world space (this is the visible area)
-        gridBounds = new Vector2(gridManager.GetColumns() * gridManager.cellSize, gridManager.GetRows() * gridManager.cellSize);
+        // Calculate the total number of cells in the grid
+        totalCells = gridManager.GetColumns() * gridManager.GetRows();
+        greenCells = 0;  // Initially, no cells are green
     }
 
     void Update()
@@ -65,6 +68,13 @@ public class SnakeController : MonoBehaviour
 
         // Mark the tile where the snake is passing to change its color
         MarkCurrentTile();
+
+        // Check if all the cells are green and if the game is won
+        if (greenCells == totalCells)
+        {
+            // Pause the game and show a message
+            PauseGame();
+        }
     }
 
     void MoveSnake()
@@ -74,10 +84,34 @@ public class SnakeController : MonoBehaviour
         {
             Vector3 movement = new Vector3(direction.x, direction.y, 0) * speed * Time.deltaTime;
             transform.position += movement; // Apply movement
+
+            // Rotate the snake based on the direction it is moving
+            RotateSnake();
         }
 
-        // Check for grid bounds and rebound if necessary
+        // Check for bounds and bounce if necessary
         CheckBounds();
+    }
+
+    void RotateSnake()
+    {
+        // Rotate the snake based on the movement direction
+        if (direction == Vector2.right)
+        {
+            transform.rotation = Quaternion.Euler(0, 0, 0); // Face right (no rotation)
+        }
+        else if (direction == Vector2.left)
+        {
+            transform.rotation = Quaternion.Euler(0, 0, 180); // Face left (rotate 180 degrees)
+        }
+        else if (direction == Vector2.up)
+        {
+            transform.rotation = Quaternion.Euler(0, 0, 90); // Face up (rotate 90 degrees)
+        }
+        else if (direction == Vector2.down)
+        {
+            transform.rotation = Quaternion.Euler(0, 0, -90); // Face down (rotate -90 degrees)
+        }
     }
 
     // Function to check grid bounds and bounce if necessary
@@ -85,19 +119,30 @@ public class SnakeController : MonoBehaviour
     {
         Vector3 pos = transform.position;
 
-        if (direction == Vector2.right || direction == Vector2.left)
+        // Get the number of rows and columns from the GridManager
+        int columns = gridManager.GetColumns();
+        int rows = gridManager.GetRows();
+
+        // Grid dimensions based on cell size and grid size
+        float gridWidth = columns * gridManager.cellSize;  // Total width of the grid
+        float gridHeight = rows * gridManager.cellSize;    // Total height of the grid
+
+        // Correcting bounds check by considering half of the grid size
+        float halfGridWidth = gridWidth / 2;
+        float halfGridHeight = gridHeight / 2;
+
+        // Check for horizontal bounds (left and right grid edges)
+        if (pos.x + objectWidth > halfGridWidth || pos.x - objectWidth < -halfGridWidth)
         {
-            if (pos.x + objectWidth > gridBounds.x / 2 || pos.x - objectWidth < -gridBounds.x / 2)
-            {
-                direction = (direction == Vector2.right) ? Vector2.up : Vector2.down; // Switch to vertical movement
-            }
+            // Reverse the direction horizontally if it goes out of bounds
+            direction = (direction == Vector2.right) ? Vector2.left : Vector2.right;
         }
-        else if (direction == Vector2.up || direction == Vector2.down)
+
+        // Check for vertical bounds (top and bottom grid edges)
+        if (pos.y + objectHeight > halfGridHeight || pos.y - objectHeight < -halfGridHeight)
         {
-            if (pos.y + objectHeight > gridBounds.y / 2 || pos.y - objectHeight < -gridBounds.y / 2)
-            {
-                direction = (direction == Vector2.up) ? Vector2.left : Vector2.right; // Switch to horizontal movement
-            }
+            // Reverse the direction vertically if it goes out of bounds
+            direction = (direction == Vector2.up) ? Vector2.down : Vector2.up;
         }
     }
 
@@ -127,7 +172,29 @@ public class SnakeController : MonoBehaviour
         if (cell != null)
         {
             // Turn the cell green to indicate the snake passed over it
-            cell.GetComponent<SpriteRenderer>().color = Color.green;
+            SpriteRenderer cellRenderer = cell.GetComponent<SpriteRenderer>();
+            if (cellRenderer.color != Color.green) // Check if the cell is already green
+            {
+                cellRenderer.color = Color.green;
+                greenCells++; // Increase green cell count
+            }
         }
+    }
+
+
+    public void IncreaseSnakeSize(float sizeIncrease)
+    {
+        Vector3 currentScale = transform.localScale;
+        transform.localScale = new Vector3(currentScale.x + sizeIncrease, currentScale.y + sizeIncrease, currentScale.z);
+    }
+
+
+    // Pause the game and show a "You Won!" message
+    void PauseGame()
+    {
+        scoreManager.ShowWin();
+        Time.timeScale = 0; // Freeze the game
+        Debug.Log("You Won!"); // You can replace this with a UI element to show the message
+      
     }
 }
